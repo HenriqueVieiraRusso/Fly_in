@@ -1,0 +1,81 @@
+from dataclasses import dataclass
+from enum import Enum
+
+
+class ZoneType(Enum):
+    """Kinds of zones, each with a cost to enter."""
+
+    NORMAL = "normal"
+    BLOCKED = "blocked"
+    RESTRICTED = "restricted"
+    PRIORITY = "priority"
+
+    @property
+    def movement_cost(self) -> int:
+        """Return the number of turns needed to enter this zone type.
+
+        Raises:
+            ValueError: If the zone is blocked and cannot be entered.
+        """
+        if self is ZoneType.BLOCKED:
+            raise ValueError("Blocked zones cannot be entered")
+        if self is ZoneType.RESTRICTED:
+            return 2
+        return 1
+
+    @classmethod
+    def from_string(cls, value: str) -> "ZoneType":
+        """Convert a string from the map file into a ZoneType.
+
+        Raises:
+            ValueError: If the string is not a valid zone type.
+        """
+        try:
+            return cls(value)
+        except ValueError:
+            valid = ", ".join(t.value for t in cls)
+            raise ValueError(
+                f"Invalid zone type '{value}' (expected one of: {valid})"
+            ) from None
+
+
+@dataclass(frozen=True)
+class Zone:
+    """A single zone (hub) in the network.
+
+    Attributes:
+        name: Unique zone name (no dashes or spaces).
+        x: Integer x coordinate.
+        y: Integer y coordinate.
+        zone_type: Type of the zone.
+        color: Optional color name used for display.
+        max_drones: Max drones allowed at once (ignored for start/end).
+        is_start: True if this is the start hub.
+        is_end: True if this is the end hub.
+    """
+
+    name: str
+    x: int
+    y: int
+    zone_type: ZoneType = ZoneType.NORMAL
+    color: str | None = None
+    max_drones: int = 1
+    is_start: bool = False
+    is_end: bool = False
+
+    def __post_init__(self) -> None:
+        """Validate fields right after construction."""
+        # TODO: raise ValueError if name is empty or contains '-' or ' '
+        # TODO: raise ValueError if max_drones < 1
+        pass
+
+    @property
+    def is_blocked(self) -> bool:
+        """Return True if drones may never enter this zone."""
+        return self.zone_type is ZoneType.BLOCKED
+
+    @property
+    def has_capacity_limit(self) -> bool:
+        """Return True if max_drones applies to this zone."""
+        # TODO: start and end hubs have no capacity limit
+        raise NotImplementedError
