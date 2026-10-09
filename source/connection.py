@@ -1,5 +1,3 @@
-"""Connection model for the Fly-in drone network."""
-
 from dataclasses import dataclass
 
 
@@ -19,9 +17,16 @@ class Connection:
 
     def __post_init__(self) -> None:
         """Validate fields right after construction."""
-        # TODO: raise ValueError if max_link_capacity < 1
-        # TODO: raise ValueError if zone_a == zone_b (self-loop)
-        pass
+        if self.max_link_capacity < 1:
+            raise ValueError(
+                "Max link capacity must be a positive number, "
+                f"got {self.max_link_capacity}"
+            )
+
+        if self.zone_a == self.zone_b:
+            raise ValueError(
+                f"A zone can't connect to itself ('{self.zone_a}')"
+            )
 
     @property
     def key(self) -> frozenset[str]:
@@ -32,6 +37,7 @@ class Connection:
         """Return the zone on the opposite end from `zone_name`."""
         if zone_name == self.zone_a:
             return self.zone_b
-        if zone_name == self.zone_b:
+        elif zone_name == self.zone_b:
             return self.zone_a
-        raise ValueError(f"'{zone_name}' is not part of this connection")
+        else:
+            raise ValueError(f"'{zone_name}' is not part of this connection")
