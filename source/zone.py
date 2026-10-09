@@ -33,7 +33,7 @@ class ZoneType(Enum):
         try:
             return cls(value)
         except ValueError:
-            valid = ", ".join(t.value for t in cls)
+            valid = ", ".join(zone_type.value for zone_type in cls)
             raise ValueError(
                 f"Invalid zone type '{value}' (expected one of: {valid})"
             ) from None
@@ -50,8 +50,8 @@ class Zone:
         zone_type: Type of the zone.
         color: Optional color name used for display.
         max_drones: Max drones allowed at once (ignored for start/end).
-        is_start: True if this is the start hub.
-        is_end: True if this is the end hub.
+        is_start: True if start hub.
+        is_end: True the end hub.
     """
 
     name: str
@@ -64,10 +64,21 @@ class Zone:
     is_end: bool = False
 
     def __post_init__(self) -> None:
-        """Validate fields right after construction."""
-        # TODO: raise ValueError if name is empty or contains '-' or ' '
-        # TODO: raise ValueError if max_drones < 1
-        pass
+        """Validate fields right after : """
+        if not self.name:
+            raise ValueError("Zone name cannot be empty")
+        if "-" in self.name:
+            raise ValueError(
+                f"Zone name '{self.name}' can not contain dashes (-)"
+                )
+        if " " in self.name:
+            raise ValueError(
+                f"Zone name '{self.name}' can not contain spaces"
+                )
+        if self.max_drones < 1:
+            raise ValueError(
+                f"Max drones must be a positive int, got{self.max_drones}"
+                )
 
     @property
     def is_blocked(self) -> bool:
@@ -76,6 +87,5 @@ class Zone:
 
     @property
     def has_capacity_limit(self) -> bool:
-        """Return True if max_drones applies to this zone."""
-        # TODO: start and end hubs have no capacity limit
-        raise NotImplementedError
+        """Return True if not end or start."""
+        return not (self.is_start or self.is_end)
