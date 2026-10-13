@@ -32,6 +32,7 @@ class MapParser:
         """Handle one non-empty line; return the (possibly new) graph."""
         if ":" not in line:
             raise ValueError("Expected 'key: value' format")
+
         prefix, rest = line.split(":", 1)
         prefix = prefix.strip()
         rest = rest.strip()
@@ -85,12 +86,15 @@ class MapParser:
 
         if len(words) != 3:
             raise ValueError("A zone needs: name, x, y")
+
         name, x_test, y_test = words
         metadata: dict[str, str] = {}
+
         if bracket:
             metadata = self._parse_metadata(
                 bracket + tail.strip(), {"zone", "color", "max_drones"}
             )
+
         try:
             x = int(x_test)
             y = int(y_test)
@@ -100,17 +104,27 @@ class MapParser:
                 f"got '{x_test}' and '{y_test}'"
             ) from None
 
+        max_drones = 1
+        if "max_drones" in metadata:
+            try:
+                max_drones = int(metadata["max_drones"])
+            except ValueError:
+                raise ValueError(
+                    f"max_drones of '{name}' must be an int, "
+                    f"got '{metadata['max_drones']}'"
+                ) from None
 
+        zone_type = ZoneType.from_string(metadata.get("zone", "normal"))
+        color = metadata.get("color")
 
+        zone = Zone(
+            name=name,
+            x=x,
+            y=y,
+            zone_type=zone_type,
+            color=color,
+            is_start=(prefix == "start_hub"),
+            is_end=(prefix == "end_hub")
+        )
 
-
-
-        # TODO: split `rest` into the main part and the optional [metadata]
-        #       (look for '[' with rest.find or partition)
-        # TODO: main part must have exactly 3 words: name x y
-        # TODO: convert x and y with int(), with a clear error message
-        # TODO: read zone, color, max_drones from the metadata
-        # TODO: ZoneType.from_string for the zone type
-        # TODO: build Zone with is_start=(prefix == "start_hub") and
-        #       is_end=(prefix == "end_hub")
-        # TODO: graph.add_zone(zone)
+        graph.add_zone(zone)
