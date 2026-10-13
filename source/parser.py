@@ -24,19 +24,93 @@ class MapParser:
                         raise ParseError(number, str(error)) from None
         except OSError as error:
             raise ParseError(0, f"Cannot read '{path}': {error}") from None
-        # TODO: raise if graph is None, or has no start / no end
+        if graph is None:
+            raise ParseError(0, "The map file is empty.")
         return graph
 
     def _parse_line(self, line: str, graph: Graph | None) -> Graph | None:
         """Handle one non-empty line; return the (possibly new) graph."""
-        # TODO: split on the first ':' into prefix and rest
-        # TODO: if graph is None, prefix MUST be nb_drones -> create Graph
-        # TODO: otherwise dispatch on prefix to _parse_zone / _parse_connection
-        raise NotImplementedError
+        if ":" not in line:
+            raise ValueError("Expected 'key: value' format")
+        prefix, rest = line.split(":", 1)
+        prefix = prefix.strip()
+        rest = rest.strip()
+
+        try:
+            nb_drones = int(rest)
+        except ValueError:
+            raise ValueError(
+                f"nb_drones must be an int, got '{rest}'"
+            ) from None
+        graph = Graph(nb_drones)
+
+        if graph is None:
+            if prefix != "nb_drones":
+                raise ValueError("The first line must define nb_drones")
+            return Graph(self._parse_int(rest, "nb_drones"))
+
+        if prefix == "nb_drones":
+            raise ValueError("nb_drones is defined more than once")
+        if prefix in ("start_hub", "hub", "end_hub"):
+            self._parse_zone(prefix, rest, graph)
+        elif prefix == "connection":
+            self._parse_connection(rest, graph)
+        else:
+            raise ValueError(f"Unknown prefix: {prefix}")
+
+        return graph
 
     def _parse_metadata(self, text: str, allowed: set[str]) -> dict[str, str]:
         """Parse '[a=b c=d]' into a dict."""
-        # TODO: must start with '[' and end with ']'
-        # TODO: each token must contain exactly one '='
-        # TODO: key must be in `allowed`, else ValueError
-        raise NotImplementedError
+        if not (text.startswith("[") and text.endswith("]")):
+            raise ValueError(f"Metadata must be inside [...], got {text}")
+
+        result: dict[str, str] = {}
+        for token in text[1:-1].split():
+            if token.count("=") != 1:
+                raise ValueError(
+                    f"Invalid metadata '{token}' (expected key=value)")
+            key, value = token.split("=")
+            if key not in allowed:
+                raise ValueError(f"Unknown metadata key '{key}'")
+            if not value:
+                raise ValueError(f"Metadata key '{key} has no value'")
+            result[key] = value
+        return result
+
+    def _parse_zone(self, prefix: str, rest: str, graph: Graph) -> None:
+        """Parse a zone line and add it to the graph."""
+        main, bracket, tail = rest.partition("[")
+        words = main.split()
+
+        if len(words) != 3:
+            raise ValueError("A zone needs: name, x, y")
+        name, x_test, y_test = words
+        metadata: dict[str, str] = {}
+        if bracket:
+            metadata = self._parse_metadata(
+                bracket + tail.strip(), {"zone", "color", "max_drones"}
+            )
+        try:
+            x = int(x_test)
+            y = int(y_test)
+        except ValueError:
+            raise ValueError(
+                f"Coordinates of '{name}' must be int,"
+                f"got '{x_test}' and '{y_test}'"
+            ) from None
+
+
+
+
+
+
+        # TODO: split `rest` into the main part and the optional [metadata]
+        #       (look for '[' with rest.find or partition)
+        # TODO: main part must have exactly 3 words: name x y
+        # TODO: convert x and y with int(), with a clear error message
+        # TODO: read zone, color, max_drones from the metadata
+        # TODO: ZoneType.from_string for the zone type
+        # TODO: build Zone with is_start=(prefix == "start_hub") and
+        #       is_end=(prefix == "end_hub")
+        # TODO: graph.add_zone(zone)
