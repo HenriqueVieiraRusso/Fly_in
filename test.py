@@ -7,6 +7,8 @@ from source.zone import Zone, ZoneType
 from source.errors import ParseError
 from source.graph import Graph, Connection
 from source.reservations import ReservationTable, trip_turns
+from source.pathfinder import find_path
+from source.scheduler import plan_all, reserve_path
 
 
 class TestZone(unittest.TestCase):
@@ -326,6 +328,232 @@ class TestReservationTable(unittest.TestCase):
         self.table.reserve_move(destination, conn, 1)
 
         self.assertFalse(self.table.can_move(destination, conn, 1))
+
+
+class TestPathfinder(unittest.TestCase):
+    def test_linear_map(self):
+        """A drone should follow a simple path to the end."""
+        graph = Graph(1)
+        a = Zone("a", 0, 0, is_start=True)
+        b = Zone("b", 1, 0)
+        c = Zone("c", 2, 0, is_end=True)
+
+        for zone in (a, b, c):
+            graph.add_zone(zone)
+
+        graph.add_connection(Connection("a", "b"))
+        graph.add_connection(Connection("b", "c"))
+
+        path = find_path(graph, ReservationTable())
+
+        self.assertIsNotNone(path)
+        assert path is not None
+        self.assertEqual(path[0], ("a", 0))
+        self.assertEqual(path[-1][0], "c")
+        self.assertEqual(path[-1][1], 2)
+
+    def test_waits_when_connection_is_at_capacity(self):
+        """The drone should wait, then use the connection when available."""
+        graph = Graph(1)
+        a = Zone("a", 0, 0, is_start=True)
+        b = Zone("b", 1, 0, is_end=True)
+
+        graph.add_zone(a)
+        graph.add_zone(b)
+
+        connection = Connection("a", "b")
+        graph.add_connection(connection)
+
+        table = ReservationTable()
+        table.link_usage[(connection.key, 1)] = 1
+
+        path = find_path(graph, table)
+
+        self.assertIsNotNone(path)
+        assert path is not None
+        self.assertEqual(
+            path,
+            [("a", 0), ("a", 1), ("b", 2)],
+        )
+
+    def test_fork_chooses_available_route(self):
+        """If one branch is blocked, the drone should take the other."""
+        graph = Graph(1)
+        a = Zone("a", 0, 0, is_start=True)
+        b = Zone("b", 1, 0)
+        c = Zone("c", 1, 1)
+        d = Zone("d", 2, 0, is_end=True)
+
+        for zone in (a, b, c, d):
+            graph.add_zone(zone)
+
+        ab = Connection("a", "b")
+        ac = Connection("a", "c")
+        bd = Connection("b", "d")
+        cd = Connection("c", "d")
+
+        for connection in (ab, ac, bd, cd):
+            graph.add_connection(connection)
+
+        table = ReservationTable()
+        table.link_usage[(ab.key, 1)] = ab.max_link_capacity
+
+        path = find_path(graph, table)
+
+        self.assertIsNotNone(path)
+        assert path is not None
+        self.assertEqual(path[0], ("a", 0))
+        self.assertEqual(path[-1][0], "d")
+        self.assertIn(("c", 1), path)
+        self.assertNotIn(("b", 1), path)
+
+    def test_restricted_zone_takes_extra_turn(self):
+        """Entering a zone with movement cost 2 should take two turns."""
+        graph = Graph(1)
+        a = Zone("a", 0, 0, is_start=True)
+        restricted = Zone("r", 1, 0, zone_type=ZoneType.RESTRICTED)
+        end = Zone("end", 2, 0, is_end=True)
+
+        for zone in (a, restricted, end):
+            graph.add_zone(zone)
+
+        graph.add_connection(Connection("a", "r"))
+        graph.add_connection(Connection("r", "end"))
+
+        path = find_path(graph, ReservationTable())
+
+        self.assertIsNotNone(path)
+        assert path is not None
+        self.assertIn(("r", 2), path)
+        self.assertEqual(path[-1], ("end", 3))
+
+    def test_prefers_priority_zone_when_arrival_time_ties(self):
+        """Among equally fast routes,
+            prefer the route through a priority zone."""
+        graph = Graph(1)
+        a = Zone("a", 0, 0, is_start=True)
+        regular = Zone("regular", 1, 0)
+        priority = Zone(
+            "priority",
+            1,
+            1,
+            zone_type=ZoneType.PRIORITY,
+        )
+        end = Zone("end", 2, 0, is_end=True)
+
+        for zone in (a, regular, priority, end):
+            graph.add_zone(zone)
+
+        graph.add_connection(Connection("a", "regular"))
+        graph.add_connection(Connection("regular", "end"))
+        graph.add_connection(Connection("a", "priority"))
+        graph.add_connection(Connection("priority", "end"))
+
+        path = find_path(graph, ReservationTable())
+
+        self.assertIsNotNone(path)
+        assert path is not None
+        self.assertIn(("priority", 1), path)
+        self.assertEqual(path[-1], ("end", 2))
+
+    def test_returns_none_when_no_path_exists(self):
+        """An isolated end zone should be unreachable."""
+        graph = Graph(1)
+        a = Zone("a", 0, 0, is_start=True)
+        end = Zone("end", 1, 0, is_end=True)
+
+        graph.add_zone(a)
+        graph.add_zone(end)
+
+        path = find_path(graph, ReservationTable())
+
+        self.assertIsNone(path)
+
+
+class TestScheduler(unittest.TestCase):
+    """Tests for reserve_path and plan_all."""
+
+    def test_reserve_path_records_wait(self) -> None:
+        graph = Graph(1)
+        graph.add_zone(Zone("start", 0, 0, is_start=True))
+        graph.add_zone(Zone("end", 1, 0, is_end=True))
+        conn = Connection("start", "end")
+        graph.add_connection(conn)
+
+        table = ReservationTable()
+        path = [("start", 0), ("start", 1), ("end", 2)]
+        reserve_path(graph, table, path)
+
+        self.assertEqual(table.zone_usage.get(("start", 1), 0), 1)
+        self.assertEqual(table.link_usage.get((conn.key, 2), 0), 1)
+        self.assertEqual(table.zone_usage.get(("end", 2), 0), 1)
+
+    def test_reserve_restricted_move_uses_both_turns(self) -> None:
+        graph = Graph(1)
+        graph.add_zone(Zone("start", 0, 0, is_start=True))
+        graph.add_zone(Zone("r", 1, 0, ZoneType.RESTRICTED))
+        graph.add_zone(Zone("end", 2, 0, is_end=True))
+        conn = Connection("start", "r")
+        graph.add_connection(conn)
+        graph.add_connection(Connection("r", "end"))
+
+        table = ReservationTable()
+        path = [("start", 0), ("r", 2), ("end", 3)]
+        reserve_path(graph, table, path)
+
+        self.assertEqual(table.link_usage[(conn.key, 1)], 1)
+        self.assertEqual(table.link_usage[(conn.key, 2)], 1)
+        self.assertEqual(table.zone_usage[("r", 2)], 1)
+        self.assertNotIn(("r", 1), table.zone_usage)
+
+    def test_plan_all_returns_one_path_per_drone(self) -> None:
+        graph = Graph(2)
+        graph.add_zone(Zone("start", 0, 0, is_start=True))
+        graph.add_zone(Zone("end", 1, 0, is_end=True))
+        graph.add_connection(
+            Connection("start", "end", max_link_capacity=2)
+        )
+
+        paths = plan_all(graph)
+
+        self.assertEqual(len(paths), 2)
+        self.assertTrue(all(p[0] == ("start", 0) for p in paths))
+        self.assertTrue(all(p[-1] == ("end", 1) for p in paths))
+
+    def test_capacity_one_link_delays_second_drone(self) -> None:
+        graph = Graph(2)
+        graph.add_zone(Zone("start", 0, 0, is_start=True))
+        graph.add_zone(Zone("end", 1, 0, is_end=True))
+        graph.add_connection(Connection("start", "end"))
+
+        paths = plan_all(graph)
+
+        self.assertEqual(paths[0][-1], ("end", 1))
+        self.assertEqual(paths[1][-1], ("end", 2))
+
+    def test_fork_splits_two_drones(self) -> None:
+        graph = Graph(2)
+        graph.add_zone(Zone("start", 0, 0, is_start=True))
+        graph.add_zone(Zone("b", 1, 0))
+        graph.add_zone(Zone("c", 1, 1))
+        graph.add_zone(Zone("end", 2, 0, is_end=True))
+        for a, b in (("start", "b"), ("start", "c"),
+                     ("b", "end"), ("c", "end")):
+            graph.add_connection(Connection(a, b))
+
+        paths = plan_all(graph)
+
+        self.assertEqual(paths[0][-1], ("end", 2))
+        self.assertEqual(paths[1][-1], ("end", 2))
+        self.assertNotEqual(paths[0][1], paths[1][1])
+
+    def test_plan_all_raises_when_a_drone_cannot_arrive(self) -> None:
+        graph = Graph(1)
+        graph.add_zone(Zone("start", 0, 0, is_start=True))
+        graph.add_zone(Zone("end", 1, 0, is_end=True))
+
+        with self.assertRaises(ValueError):
+            plan_all(graph)
 
 
 if __name__ == "__main__":

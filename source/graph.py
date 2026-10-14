@@ -27,7 +27,7 @@ class Graph:
         self.start: Zone | None = None
         self.end: Zone | None = None
         self._adjacency: dict[str, list[Connection]] = {}
-        self._seen_keys: set[frozenset[str]] = set()
+        self._by_key: dict[frozenset[str], Connection] = {}
 
     def add_zone(self, zone: Zone) -> None:
         """Add a zone to the graph.
@@ -57,20 +57,15 @@ class Graph:
                 duplicate (a-b and b-a count as the same).
         """
         if connection.zone_a not in self.zones:
-            raise ValueError(
-                f"Unknown zone '{connection.zone_a}'")
-
+            raise ValueError(f"Unknown zone '{connection.zone_a}'")
         if connection.zone_b not in self.zones:
+            raise ValueError(f"Unknown zone '{connection.zone_b}'")
+        if connection.key in self._by_key:
             raise ValueError(
-                f"Unknown zone '{connection.zone_b}'")
-
-        if connection.key in self._seen_keys:
-            raise ValueError(
-                f"fDuplicate connection "
+                "Duplicate connection "
                 f"'{connection.zone_a}-{connection.zone_b}'"
-                )
-
-        self._seen_keys.add(connection.key)
+            )
+        self._by_key[connection.key] = connection
         self.connections.append(connection)
         self._adjacency[connection.zone_a].append(connection)
         self._adjacency[connection.zone_b].append(connection)
@@ -102,3 +97,7 @@ class Graph:
                 result.append(zone)
 
         return result
+
+    def connection_between(self, a: str, b: str) -> Connection | None:
+        """Return the connection linking `a` and `b`, if any."""
+        return self._by_key.get(frozenset((a, b)))
