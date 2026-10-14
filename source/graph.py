@@ -75,14 +75,6 @@ class Graph:
         self._adjacency[connection.zone_a].append(connection)
         self._adjacency[connection.zone_b].append(connection)
 
-        """_seen_keys.add(...): remembers this connection,
-        so a later b-a gets caught as a duplicate.
-        connections.append(...): keeps the full list in file order.
-        and 4. Add it to the adjacency list of both ends. Links are
-        bidirectional, so standing on zone_a you must see it, and standing on
-        zone_b you must see it too. If you only add it to one,
-        neighbors would work in one direction only."""
-
     def get_zone(self, name: str) -> Zone:
         """Return the zone with this name.
 

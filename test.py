@@ -6,6 +6,7 @@ from source.parser import MapParser
 from source.zone import Zone, ZoneType
 from source.errors import ParseError
 from source.graph import Graph, Connection
+from source.reservations import ReservationTable, trip_turns
 
 
 class TestZone(unittest.TestCase):
@@ -202,6 +203,129 @@ class TestMapParser(unittest.TestCase):
         self.assertIsNotNone(graph.start)
         self.assertIsNotNone(graph.end)
         self.assertEqual(len(graph.connections), 1)
+
+
+class TestReservationTable(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.table = ReservationTable()
+        self.a = Zone("a", 0, 0)
+        self.b = Zone("b", 1, 1)
+        self.conn = Connection("a", "b", 1)
+
+    def test_can_stay_with_available_capacity(self) -> None:
+        self.assertTrue(self.table.can_stay(self.a, 0))
+
+    def test_reserve_stay_increments_usage(self) -> None:
+        self.table.reserve_stay(self.a, 1)
+        self.table.reserve_stay(self.a, 1)
+
+        self.assertEqual(self.table.zone_usage[("a", 1)], 2)
+
+    def test_can_stay_respects_capacity(self) -> None:
+        zone = Zone("limited", 0, 0, max_drones=1)
+
+        self.table.reserve_stay(zone, 1)
+
+        self.assertFalse(self.table.can_stay(zone, 1))
+        self.assertTrue(self.table.can_stay(zone, 2))
+
+    def test_unlimited_zone_can_stay(self) -> None:
+        zone = Zone("start", 0, 0, is_start=True, max_drones=1)
+
+        self.table.reserve_stay(zone, 1)
+        self.table.reserve_stay(zone, 1)
+
+        self.assertTrue(self.table.can_stay(zone, 1))
+
+    def test_can_move_with_available_link(self) -> None:
+        self.assertTrue(self.table.can_move(self.b, self.conn, 1))
+
+    def test_blocked_destination_cannot_move(self) -> None:
+        blocked = Zone("blocked", 1, 1, ZoneType.BLOCKED)
+        conn = Connection("a", "blocked")
+
+        self.assertFalse(self.table.can_move(blocked, conn, 1))
+
+    def test_link_capacity_is_respected(self) -> None:
+        self.table.reserve_move(self.b, self.conn, 1)
+
+        self.assertFalse(self.table.can_move(self.b, self.conn, 1))
+        self.assertTrue(self.table.can_move(self.b, self.conn, 2))
+
+    def test_reserve_move_records_link_usage(self) -> None:
+        self.table.reserve_move(self.b, self.conn, 3)
+
+        self.assertEqual(
+            self.table.link_usage[(self.conn.key, 3)], 1
+        )
+
+    def test_reserve_move_records_destination_usage(self) -> None:
+        self.table.reserve_move(self.b, self.conn, 3)
+
+        arrival_turn = 3 + trip_turns(self.b) - 1
+
+        self.assertEqual(
+            self.table.zone_usage[("b", arrival_turn)], 1
+        )
+
+    def test_destination_capacity_prevents_move(self) -> None:
+        destination = Zone("limited", 1, 1, max_drones=1)
+        conn = Connection("a", "limited")
+        arrival_turn = trip_turns(destination) - 1
+
+        self.table.reserve_stay(destination, arrival_turn)
+
+        self.assertFalse(
+            self.table.can_move(destination, conn, 0)
+        )
+
+    def test_link_capacity_checked_for_every_trip_turn(self) -> None:
+        restricted = Zone("restricted", 1, 1, ZoneType.RESTRICTED)
+        conn = Connection("a", "restricted", 1)
+
+        duration = trip_turns(restricted)
+        self.assertGreaterEqual(duration, 2)
+
+        # Occupy the link on the second turn of the trip.
+        self.table.link_usage[(conn.key, 1)] = 1
+
+        self.assertFalse(self.table.can_move(restricted, conn, 0))
+
+    def test_reserve_restricted_move_uses_multiple_turns(self) -> None:
+        restricted = Zone("restricted", 1, 1, ZoneType.RESTRICTED)
+        conn = Connection("a", "restricted", 2)
+
+        duration = trip_turns(restricted)
+        self.table.reserve_move(restricted, conn, 2)
+
+        for turn in range(2, 2 + duration):
+            self.assertEqual(
+                self.table.link_usage[(conn.key, turn)], 1
+            )
+
+        arrival_turn = 2 + duration - 1
+        self.assertEqual(
+            self.table.zone_usage[("restricted", arrival_turn)], 1
+        )
+
+    def test_trip_turns_returns_destination_movement_cost(self) -> None:
+        self.assertEqual(
+            trip_turns(self.b), self.b.zone_type.movement_cost
+        )
+
+    def test_connection_capacity_allows_multiple_drones(self) -> None:
+        # Use an unlimited-capacity destination so only link capacity matters.
+        destination = Zone("b", 1, 1, is_end=True, max_drones=1)
+        conn = Connection("a", "b", 2)
+
+        self.table.reserve_move(destination, conn, 1)
+
+        self.assertTrue(self.table.can_move(destination, conn, 1))
+
+        self.table.reserve_move(destination, conn, 1)
+
+        self.assertFalse(self.table.can_move(destination, conn, 1))
 
 
 if __name__ == "__main__":
