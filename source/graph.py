@@ -43,7 +43,7 @@ class Graph:
                 raise ValueError("There can only be one start_hub")
             self.start = zone
         if zone.is_end:
-            if zone.is_end is not None:
+            if self.end is not None:
                 raise ValueError("There can only be one end_hub")
             self.end = zone
         self.zones[zone.name] = zone

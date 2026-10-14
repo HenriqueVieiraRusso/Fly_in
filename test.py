@@ -1,5 +1,8 @@
 import unittest
+import os
+import tempfile
 
+from source.parser import MapParser
 from source.zone import Zone, ZoneType
 from source.errors import ParseError
 from source.graph import Graph, Connection
@@ -66,6 +69,139 @@ class TestParseError(unittest.TestCase):
     def test_error_string(self) -> None:
         error = ParseError(7, "bad")
         self.assertEqual(str(error), "line 7: bad")
+
+
+class TestMapParser(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.parser = MapParser()
+        self.temp = tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            suffix=".map",
+            delete=False
+        )
+        self.addCleanup(self._cleanup)
+
+    def _cleanup(self) -> None:
+        self.temp.close()
+        if os.path.exists(self.temp.name):
+            os.unlink(self.temp.name)
+
+    def _parse_text(self, text: str) -> Graph:
+        self.temp.write(text)
+        self.temp.flush()
+        return self.parser.parse(self.temp.name)
+
+    def test_valid_map(self) -> None:
+        graph = self._parse_text(
+            "nb_drones: 3\n"
+            "start_hub: start 0 0\n"
+            "hub: middle 1 1\n"
+            "end_hub: end 2 2\n"
+            "connection: start-middle\n"
+            "connection: middle-end\n"
+        )
+
+        self.assertIsNotNone(graph.start)
+        self.assertIsNotNone(graph.end)
+        self.assertEqual(len(graph.connections), 2)
+
+    def test_connection_default_capacity(self) -> None:
+        graph = self._parse_text(
+            "nb_drones: 2\n"
+            "start_hub: a 0 0\n"
+            "end_hub: b 1 1\n"
+            "connection: a-b\n"
+        )
+
+        self.assertEqual(graph.connections[0].max_link_capacity, 1)
+
+    def test_connection_custom_capacity(self) -> None:
+        graph = self._parse_text(
+            "nb_drones: 2\n"
+            "start_hub: a 0 0\n"
+            "end_hub: b 1 1\n"
+            "connection: a-b [max_link_capacity=5]\n"
+            )
+
+        self.assertEqual(graph.connections[0].max_link_capacity, 5)
+
+    def test_connection_invalid_format(self) -> None:
+        with self.assertRaises(ParseError):
+            self._parse_text(
+                "nb_drones: 2\n"
+                "start_hub: a 0 0\n"
+                "end_hub: b 1 1\n"
+                "connection: a-b-c\n"
+            )
+
+    def test_connection_invalid_capacity(self) -> None:
+        with self.assertRaises(ParseError):
+            self._parse_text(
+                "nb_drones: 2\n"
+                "start_hub: a 0 0\n"
+                "end_hub: b 1 1\n"
+                "connection: a-b [max_link_capacity=abc]\n"
+            )
+
+    def test_connection_unknown_metadata(self) -> None:
+        with self.assertRaises(ParseError):
+            self._parse_text(
+                "nb_drones: 2\n"
+                "start_hub: a 0 0\n"
+                "end_hub: b 1 1\n"
+                "connection: a-b [unknown=5]\n"
+            )
+
+    def test_missing_start_hub(self) -> None:
+        with self.assertRaises(ParseError):
+            self._parse_text(
+                "nb_drones: 2\n"
+                "hub: a 0 0\n"
+                "end_hub: b 1 1\n"
+            )
+
+    def test_missing_end_hub(self) -> None:
+        with self.assertRaises(ParseError):
+            self._parse_text(
+                "nb_drones: 2\n"
+                "start_hub: a 0 0\n"
+                "hub: b 1 1\n"
+            )
+
+    def test_first_line_must_be_nb_drones(self) -> None:
+        with self.assertRaises(ParseError):
+            self._parse_text(
+                "start_hub: a 0 0\n"
+                "end_hub: b 1 1\n"
+            )
+
+    def test_invalid_drone_count(self) -> None:
+        with self.assertRaises(ParseError):
+            self._parse_text(
+                "nb_drones: abc\n"
+                "start_hub: a 0 0\n"
+                "end_hub: b 1 1\n"
+            )
+
+    def test_empty_map(self) -> None:
+        with self.assertRaises(ParseError):
+            self._parse_text("")
+
+    def test_comments_and_blank_lines(self) -> None:
+        graph = self._parse_text(
+            "# Example map\n"
+            "\n"
+            "nb_drones: 2\n"
+            "start_hub: a 0 0 # starting point\n"
+            "end_hub: b 1 1\n"
+            "connection: a-b\n"
+        )
+
+        self.assertIsNotNone(graph.start)
+        self.assertIsNotNone(graph.end)
+        self.assertEqual(len(graph.connections), 1)
 
 
 if __name__ == "__main__":

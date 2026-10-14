@@ -24,31 +24,33 @@ class MapParser:
                         raise ParseError(number, str(error)) from None
         except OSError as error:
             raise ParseError(0, f"Cannot read '{path}': {error}") from None
+
         if graph is None:
             raise ParseError(0, "The map file is empty.")
+        if graph.start is None:
+            raise ParseError(0, "Missing start_hub")
+        if graph.end is None:
+            raise ParseError(0, "Missing end_hub")
         return graph
 
     def _parse_line(self, line: str, graph: Graph | None) -> Graph | None:
         """Handle one non-empty line; return the (possibly new) graph."""
         if ":" not in line:
             raise ValueError("Expected 'key: value' format")
-
-        prefix, rest = line.split(":", 1)
+        prefix, _, rest = line.partition(":")
         prefix = prefix.strip()
         rest = rest.strip()
-
-        try:
-            nb_drones = int(rest)
-        except ValueError:
-            raise ValueError(
-                f"nb_drones must be an int, got '{rest}'"
-            ) from None
-        graph = Graph(nb_drones)
 
         if graph is None:
             if prefix != "nb_drones":
                 raise ValueError("The first line must define nb_drones")
-            return Graph(self._parse_int(rest, "nb_drones"))
+            try:
+                nb_drones = int(rest)
+            except ValueError:
+                raise ValueError(
+                    f"nb_drones must be an integer, got '{rest}'"
+                ) from None
+            return Graph(nb_drones)
 
         if prefix == "nb_drones":
             raise ValueError("nb_drones is defined more than once")
@@ -57,8 +59,10 @@ class MapParser:
         elif prefix == "connection":
             self._parse_connection(rest, graph)
         else:
-            raise ValueError(f"Unknown prefix: {prefix}")
-
+            raise ValueError(
+                f"Unknown prefix '{prefix}' (expected start_hub, hub, "
+                "end_hub or connection)"
+            )
         return graph
 
     def _parse_metadata(self, text: str, allowed: set[str]) -> dict[str, str]:
@@ -123,8 +127,39 @@ class MapParser:
             y=y,
             zone_type=zone_type,
             color=color,
+            max_drones=max_drones,
             is_start=(prefix == "start_hub"),
             is_end=(prefix == "end_hub")
         )
 
         graph.add_zone(zone)
+
+    def _parse_connection(self, rest: str, graph: Graph) -> None:
+
+        main, bracket, tail = rest.partition("[")
+        names = main.strip().split("-")
+
+        if len(names) != 2:
+            raise ValueError(
+                "Connection must contain exactly "
+                "two zone names separated by '-'"
+            )
+
+        zone_a, zone_b = (name.strip() for name in names)
+
+        capacity = 1
+        if bracket:
+            metadata = self._parse_metadata(
+                bracket + tail.strip(), {"max_link_capacity"}
+            )
+
+            if "max_link_capacity" in metadata:
+                try:
+                    capacity = int(metadata["max_link_capacity"])
+                except ValueError:
+                    raise ValueError(
+                        "max_link_capacity must be an int, got"
+                        f"'{metadata['max_link_capacity']}'"
+                    ) from None
+
+        graph.add_connection(Connection(zone_a, zone_b, capacity))
