@@ -29,4 +29,7 @@ lint-strict:
 	$(VENV)/bin/flake8 .
 	$(VENV)/bin/mypy . --strict
 
+run-color: 
+	$(PYTHON) main.py --color $(MAP)
+
 .PHONY: install run debug clean lint lint-strict
