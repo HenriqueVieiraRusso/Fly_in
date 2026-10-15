@@ -9,6 +9,8 @@ from source.graph import Graph, Connection
 from source.reservations import ReservationTable, trip_turns
 from source.pathfinder import find_path
 from source.scheduler import plan_all, reserve_path
+from source.output import build_lines
+from source.simulation import ScheduleChecker, SimulationError
 
 
 class TestZone(unittest.TestCase):
@@ -331,7 +333,7 @@ class TestReservationTable(unittest.TestCase):
 
 
 class TestPathfinder(unittest.TestCase):
-    def test_linear_map(self):
+    def test_linear_map(self) -> None:
         """A drone should follow a simple path to the end."""
         graph = Graph(1)
         a = Zone("a", 0, 0, is_start=True)
@@ -352,7 +354,7 @@ class TestPathfinder(unittest.TestCase):
         self.assertEqual(path[-1][0], "c")
         self.assertEqual(path[-1][1], 2)
 
-    def test_waits_when_connection_is_at_capacity(self):
+    def test_waits_when_connection_is_at_capacity(self) -> None:
         """The drone should wait, then use the connection when available."""
         graph = Graph(1)
         a = Zone("a", 0, 0, is_start=True)
@@ -376,7 +378,7 @@ class TestPathfinder(unittest.TestCase):
             [("a", 0), ("a", 1), ("b", 2)],
         )
 
-    def test_fork_chooses_available_route(self):
+    def test_fork_chooses_available_route(self) -> None:
         """If one branch is blocked, the drone should take the other."""
         graph = Graph(1)
         a = Zone("a", 0, 0, is_start=True)
@@ -407,7 +409,7 @@ class TestPathfinder(unittest.TestCase):
         self.assertIn(("c", 1), path)
         self.assertNotIn(("b", 1), path)
 
-    def test_restricted_zone_takes_extra_turn(self):
+    def test_restricted_zone_takes_extra_turn(self) -> None:
         """Entering a zone with movement cost 2 should take two turns."""
         graph = Graph(1)
         a = Zone("a", 0, 0, is_start=True)
@@ -427,7 +429,7 @@ class TestPathfinder(unittest.TestCase):
         self.assertIn(("r", 2), path)
         self.assertEqual(path[-1], ("end", 3))
 
-    def test_prefers_priority_zone_when_arrival_time_ties(self):
+    def test_prefers_priority_zone_when_arrival_time_ties(self) -> None:
         """Among equally fast routes,
             prefer the route through a priority zone."""
         graph = Graph(1)
@@ -456,7 +458,7 @@ class TestPathfinder(unittest.TestCase):
         self.assertIn(("priority", 1), path)
         self.assertEqual(path[-1], ("end", 2))
 
-    def test_returns_none_when_no_path_exists(self):
+    def test_returns_none_when_no_path_exists(self) -> None:
         """An isolated end zone should be unreachable."""
         graph = Graph(1)
         a = Zone("a", 0, 0, is_start=True)
@@ -554,6 +556,83 @@ class TestScheduler(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             plan_all(graph)
+
+
+class TestOutput(unittest.TestCase):
+    """Tests for build_lines."""
+
+    def _graph(self, middle: Zone) -> Graph:
+        graph = Graph(1)
+        graph.add_zone(Zone("start", 0, 0, is_start=True))
+        graph.add_zone(middle)
+        graph.add_zone(Zone("end", 2, 0, is_end=True))
+        graph.add_connection(Connection("start", middle.name))
+        graph.add_connection(Connection(middle.name, "end"))
+        return graph
+
+    def test_linear(self) -> None:
+        graph = self._graph(Zone("a", 1, 0))
+        path = [("start", 0), ("a", 1), ("end", 2)]
+        self.assertEqual(build_lines(graph, [path]), ["D1-a", "D1-end"])
+
+    def test_restricted(self) -> None:
+        graph = self._graph(Zone("r", 1, 0, ZoneType.RESTRICTED))
+        path = [("start", 0), ("r", 2), ("end", 3)]
+        self.assertEqual(
+            build_lines(graph, [path]),
+            ["D1-start-r", "D1-r", "D1-end"],
+        )
+
+    def test_wait_and_two_drones(self) -> None:
+        graph = self._graph(Zone("a", 1, 0))
+        p1 = [("start", 0), ("a", 1), ("end", 2)]
+        p2 = [("start", 0), ("start", 1), ("a", 2), ("end", 3)]
+        self.assertEqual(
+            build_lines(graph, [p1, p2]),
+            ["D1-a", "D1-end D2-a", "D2-end"],
+        )
+
+    def test_empty(self) -> None:
+        graph = self._graph(Zone("a", 1, 0))
+        self.assertEqual(build_lines(graph, []), [])
+
+
+class TestChecker(unittest.TestCase):
+    def _graph(self, cap: int = 1) -> Graph:
+        g = Graph(2)
+        g.add_zone(Zone("start", 0, 0, is_start=True))
+        g.add_zone(Zone("a", 1, 0))
+        g.add_zone(Zone("end", 2, 0, is_end=True))
+        g.add_connection(Connection("start", "a", cap))
+        g.add_connection(Connection("a", "end", cap))
+        return g
+
+    def test_valid(self) -> None:
+        lines = ["D1-a", "D1-end D2-a", "D2-end"]
+        checker = ScheduleChecker(self._graph())
+        self.assertEqual(checker.check(lines), 3)
+
+    def test_teleport(self) -> None:
+        with self.assertRaises(SimulationError):
+            ScheduleChecker(self._graph()).check(["D1-end"])
+
+    def test_zone_over_capacity(self) -> None:
+        with self.assertRaises(SimulationError):
+            ScheduleChecker(self._graph()).check(["D1-a D2-a"])
+
+    def test_link_over_capacity(self) -> None:
+        g = Graph(2)
+        g.add_zone(Zone("start", 0, 0, is_start=True))
+        g.add_zone(Zone("a", 1, 0, max_drones=2))
+        g.add_zone(Zone("end", 2, 0, is_end=True))
+        g.add_connection(Connection("start", "a", 1))
+        g.add_connection(Connection("a", "end"))
+        with self.assertRaisesRegex(SimulationError, "link"):
+            ScheduleChecker(g).check(["D1-a D2-a"])
+
+    def test_not_all_delivered(self) -> None:
+        with self.assertRaises(SimulationError):
+            ScheduleChecker(self._graph()).check(["D1-a", "D1-end"])
 
 
 if __name__ == "__main__":
