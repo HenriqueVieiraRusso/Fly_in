@@ -2,11 +2,11 @@
 
 import sys
 
-from source.errors import ParseError
-from source.output import build_lines
-from source.parser import MapParser
-from source.scheduler import plan_all
-from source.simulation import ScheduleChecker, SimulationError
+from source.parsing.errors import ParseError
+from source.simulation.output import build_lines
+from source.parsing.parser import MapParser
+from source.planning.scheduler import plan_all
+from source.simulation.simulation import ScheduleChecker, SimulationError
 
 
 def main(argv: list[str]) -> int:
@@ -35,10 +35,11 @@ def main(argv: list[str]) -> int:
     print(f"Total turns: {turns}", file=sys.stderr)
 
     try:
-        from source.gui import PygameRenderer
+        from source.visual.gui import PygameRenderer
         PygameRenderer(graph, lines).run()
     except KeyboardInterrupt:
-        pass  # Ctrl+C: leave quietly
+        print("\nProgram interrupted by user", file=sys.stderr)
+        return 0
     except Exception as error:  # pygame missing, no display, ...
         print(f"Window unavailable: {error}", file=sys.stderr)
     return 0
@@ -48,4 +49,5 @@ if __name__ == "__main__":
     try:
         sys.exit(main(sys.argv[1:]))
     except KeyboardInterrupt:
+        print("\nProgram interrupted by user", file=sys.stderr)
         sys.exit(130)

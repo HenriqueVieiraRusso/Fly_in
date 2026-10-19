@@ -1,6 +1,6 @@
 """Compute drone positions after every turn."""
 
-from source.graph import Graph
+from source.models.graph import Graph
 
 Point = tuple[float, float]
 Frame = dict[str, Point]

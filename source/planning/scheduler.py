@@ -1,8 +1,8 @@
 """Plan a schedule for every drone."""
 
-from source.graph import Graph
-from source.pathfinder import State, find_path
-from source.reservations import ReservationTable
+from source.models.graph import Graph
+from source.planning.pathfinder import State, find_path
+from source.planning.reservations import ReservationTable
 
 
 def reserve_path(

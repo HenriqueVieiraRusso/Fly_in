@@ -20,13 +20,13 @@ clean:
 	rm -rf .mypy_cache .pytest_cache
 
 lint:
-	$(VENV)/bin/flake8 .
+	$(VENV)/bin/flake8 . --exclude=$(VENV),.git,__pycache__,.mypy_cache,.pytest_cache
 	$(VENV)/bin/mypy . --warn-return-any --warn-unused-ignores \
 		--ignore-missing-imports --disallow-untyped-defs \
 		--check-untyped-defs
 
 lint-strict:
-	$(VENV)/bin/flake8 .
+	$(VENV)/bin/flake8 . --exclude=$(VENV),.git,__pycache__,.mypy_cache,.pytest_cache
 	$(VENV)/bin/mypy . --strict
 
 run-color: 

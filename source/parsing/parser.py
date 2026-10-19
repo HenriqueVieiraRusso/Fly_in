@@ -1,9 +1,9 @@
 """Parser for Fly-in map files."""
 
-from source.connection import Connection
-from source.errors import ParseError
-from source.graph import Graph
-from source.zone import Zone, ZoneType
+from source.models.connection import Connection
+from source.parsing.errors import ParseError
+from source.models.graph import Graph
+from source.models.zone import Zone, ZoneType
 
 
 class MapParser:

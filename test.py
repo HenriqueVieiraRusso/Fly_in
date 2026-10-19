@@ -2,15 +2,15 @@ import unittest
 import os
 import tempfile
 
-from source.parser import MapParser
-from source.zone import Zone, ZoneType
-from source.errors import ParseError
+from source.parsing.parser import MapParser
+from source.models.zone import Zone, ZoneType
+from source.parsing.errors import ParseError
 from source.graph import Graph, Connection
-from source.reservations import ReservationTable, trip_turns
-from source.pathfinder import find_path
-from source.scheduler import plan_all, reserve_path
-from source.output import build_lines
-from source.simulation import ScheduleChecker, SimulationError
+from source.planning.reservations import ReservationTable, trip_turns
+from source.planning.pathfinder import find_path
+from source.planning.scheduler import plan_all, reserve_path
+from source.simulation.output import build_lines
+from source.simulation.simulation import ScheduleChecker, SimulationError
 
 
 class TestZone(unittest.TestCase):

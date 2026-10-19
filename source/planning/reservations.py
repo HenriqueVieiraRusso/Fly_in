@@ -5,8 +5,8 @@ is where it is after that line. Turn 0 is the initial state, before any
 line is printed.
 """
 
-from source.connection import Connection
-from source.zone import Zone
+from source.models.connection import Connection
+from source.models.zone import Zone
 
 
 def trip_turns(dst: Zone) -> int:

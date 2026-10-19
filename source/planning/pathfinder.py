@@ -8,9 +8,9 @@ next move is made on line T + 1.
 import heapq
 from itertools import count
 
-from source.graph import Graph
-from source.reservations import ReservationTable, trip_turns
-from source.zone import ZoneType
+from source.models.graph import Graph
+from source.planning.reservations import ReservationTable, trip_turns
+from source.models.zone import ZoneType
 
 State = tuple[str, int]
 

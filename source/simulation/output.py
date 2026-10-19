@@ -1,7 +1,7 @@
 """Turn planned paths into the simulation output lines."""
 
-from source.graph import Graph
-from source.pathfinder import State
+from source.models.graph import Graph
+from source.planning.pathfinder import State
 
 
 def _connection_name(graph: Graph, zone_a: str, zone_b: str) -> str:

@@ -6,8 +6,8 @@ restricted zone. Zone names cannot contain dashes, so any target with a
 dash is a connection.
 """
 
-from source.graph import Graph
-from source.zone import ZoneType
+from source.models.graph import Graph
+from source.models.zone import ZoneType
 
 
 class SimulationError(Exception):

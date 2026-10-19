@@ -1,7 +1,7 @@
 """Graph model for the Fly-in drone network."""
 
-from source.connection import Connection
-from source.zone import Zone
+from source.models.connection import Connection
+from source.models.zone import Zone
 
 
 class Graph:

@@ -5,8 +5,8 @@ os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 
 import pygame  # noqa: E402
 
-from source.frames import Frame, FrameBuilder, Point  # noqa: E402
-from source.graph import Graph  # noqa: E402
+from source.visual.frames import Frame, FrameBuilder, Point  # noqa: E402
+from source.models.graph import Graph  # noqa: E402
 
 
 WIDTH, HEIGHT, MARGIN, HUD = 1000, 700, 80, 60
