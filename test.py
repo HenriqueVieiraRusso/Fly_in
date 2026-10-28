@@ -5,7 +5,7 @@ import tempfile
 from source.parsing.parser import MapParser
 from source.models.zone import Zone, ZoneType
 from source.parsing.errors import ParseError
-from source.graph import Graph, Connection
+from source.models.graph import Graph, Connection
 from source.planning.reservations import ReservationTable, trip_turns
 from source.planning.pathfinder import find_path
 from source.planning.scheduler import plan_all, reserve_path

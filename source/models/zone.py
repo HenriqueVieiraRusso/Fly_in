@@ -64,7 +64,6 @@ class Zone:
     is_end: bool = False
 
     def __post_init__(self) -> None:
-        """Validate fields right after : """
         if not self.name:
             raise ValueError("Zone name cannot be empty")
         if "-" in self.name:
@@ -89,3 +88,22 @@ class Zone:
     def has_capacity_limit(self) -> bool:
         """Return True if not end or start."""
         return not (self.is_start or self.is_end)
+
+
+"""if self.max_drones < 1:
+            raise ValueError(
+                f"Max drones must be a positive int, got{self.max_drones}"
+                )
+what is max_drones is 0
+
+
+
+The generated __init__ calls this automatically after all fields are set
+how does this happen after the post_init, what is the generated init
+
+what does a map need to be for this to happen
+if not self.name:
+            raise ValueError("Zone name cannot be empty")
+
+what will be the default color if none is given
+                """

@@ -18,7 +18,10 @@ class ScheduleChecker:
     """Replays output lines and verifies every rule."""
 
     def __init__(self, graph: Graph) -> None:
+        """Store the graph and prepare empty per-turn usage history."""
         self.graph = graph
+        self.zone_history: list[dict[str, int]] = []
+        self.link_history: list[dict[frozenset[str], int]] = []
 
     @staticmethod
     def _parse_output_line(number: int, line: str) -> dict[str, str]:
@@ -60,6 +63,9 @@ class ScheduleChecker:
         }
         # drone -> (connection key, destination zone)
         in_flight: dict[str, tuple[frozenset[str], str]] = {}
+
+        self.zone_history.clear()
+        self.link_history.clear()
 
         for number, line in enumerate(lines, start=1):
             moves = self._parse_output_line(number, line)
@@ -156,6 +162,9 @@ class ScheduleChecker:
                         f"line {number}: zone '{zone_name}' over capacity "
                         f"({used} > {zone.max_drones})"
                     )
+
+            self.zone_history.append(counts)
+            self.link_history.append(link_use)
 
         if in_flight:
             raise SimulationError("a drone is still in flight at the end")
