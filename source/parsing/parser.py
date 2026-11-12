@@ -79,7 +79,7 @@ class MapParser:
             if key not in allowed:
                 raise ValueError(f"Unknown metadata key '{key}'")
             if not value:
-                raise ValueError(f"Metadata key '{key} has no value'")
+                raise ValueError(f"Metadata key '{key}' has no value")
             result[key] = value
         return result
 
