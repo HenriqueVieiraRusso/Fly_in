@@ -74,7 +74,7 @@ class Zone:
             raise ValueError(
                 f"Zone name '{self.name}' can not contain spaces"
                 )
-        if self.max_drones < 1:
+        if self.has_capacity_limit and self.max_drones < 1:
             raise ValueError(
                 f"Max drones must be a positive int, got{self.max_drones}"
                 )

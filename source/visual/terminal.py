@@ -12,7 +12,8 @@ COLORS: dict[str, str] = {
     "blue": "34", "magenta": "35", "cyan": "36", "white": "37",
     "gray": "90", "grey": "90", "orange": "38;5;208",
     "purple": "38;5;129", "brown": "38;5;130", "pink": "38;5;213",
-    "gold": "38;5;220", "maroon": "38;5;88",
+    "gold": "38;5;220", "maroon": "38;5;88", "crimson": "38;5;161",
+    "darkred": "38;5;88", "lime": "38;5;118", "violet": "38;5;177",
 }
 
 
@@ -29,7 +30,7 @@ class TerminalRenderer:
         zone = self.graph.zones.get(zone_name)
         if not self.enabled or zone is None or zone.color is None:
             return zone_name
-        code = COLORS.get(zone.color.lower())
+        code = COLORS.get(zone.color.lower(), "1")
         if code is None:
             return zone_name
         return f"\033[{code}m{zone_name}{RESET}"

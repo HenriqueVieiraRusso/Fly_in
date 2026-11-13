@@ -104,7 +104,7 @@ class MapParser:
             y = int(y_test)
         except ValueError:
             raise ValueError(
-                f"Coordinates of '{name}' must be int,"
+                f"Coordinates of '{name}' must be int, "
                 f"got '{x_test}' and '{y_test}'"
             ) from None
 
@@ -135,7 +135,7 @@ class MapParser:
         graph.add_zone(zone)
 
     def _parse_connection(self, rest: str, graph: Graph) -> None:
-
+        """Parse a connection line and add it to the graph."""
         main, bracket, tail = rest.partition("[")
         names = main.strip().split("-")
 

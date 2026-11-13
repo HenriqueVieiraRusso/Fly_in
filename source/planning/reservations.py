@@ -54,10 +54,9 @@ class ReservationTable:
             return False
         duration = trip_turns(dst)
 
-        for t in range(turn, turn + duration):
-            used = self.link_usage.get((conn.key, t), 0)
-            if used >= conn.max_link_capacity:
-                return False
+        used = self.link_usage.get((conn.key, turn), 0)
+        if used >= conn.max_link_capacity:
+            return False
 
         return self.can_stay(dst, turn + duration - 1)
 
@@ -65,8 +64,7 @@ class ReservationTable:
         """Record a move to `dst` that starts at `turn`."""
         duration = trip_turns(dst)
 
-        for t in range(turn, turn + duration):
-            key = (conn.key, t)
-            self.link_usage[key] = self.link_usage.get(key, 0) + 1
+        key = (conn.key, turn)
+        self.link_usage[key] = self.link_usage.get(key, 0) + 1
 
         self.reserve_stay(dst, turn + duration - 1)

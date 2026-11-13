@@ -84,13 +84,12 @@ class ScheduleChecker:
                     )
 
                 if drone in in_flight:
-                    key, dest = in_flight.pop(drone)
+                    _, dest = in_flight.pop(drone)
                     if target != dest:
                         raise SimulationError(
                             f"line {number}: {drone} must arrive at "
                             f"'{dest}', not '{target}'"
                         )
-                    link_use[key] = link_use.get(key, 0) + 1
                     position[drone] = dest
                     continue
 
@@ -139,7 +138,7 @@ class ScheduleChecker:
                     position[drone] = target
                     link_use[conn.key] = link_use.get(conn.key, 0) + 1
 
-            # Link capacity (a restricted trip counts on both lines).
+            # Link capacity (restricted trip counts only on its departure line)
             for key, used in link_use.items():
                 a, b = tuple(key)
                 conn = self.graph.connection_between(a, b)

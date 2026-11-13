@@ -29,7 +29,5 @@ lint-strict:
 	$(VENV)/bin/flake8 . --exclude=$(VENV),.git,__pycache__,.mypy_cache,.pytest_cache
 	$(VENV)/bin/mypy . --strict
 
-run-color: 
-	$(PYTHON) main.py --color $(MAP)
 
 .PHONY: install run debug clean lint lint-strict
