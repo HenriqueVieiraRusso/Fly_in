@@ -7,6 +7,7 @@ from source.simulation.output import build_lines
 from source.parsing.parser import MapParser
 from source.planning.scheduler import plan_all
 from source.simulation.simulation import ScheduleChecker, SimulationError
+from source.visual.terminal import TerminalRenderer
 
 
 def main(argv: list[str]) -> int:
@@ -30,18 +31,8 @@ def main(argv: list[str]) -> int:
         print(f"Error: {error}", file=sys.stderr)
         return 1
 
-    for line in lines:
-        print(line)
+    TerminalRenderer(graph).show(lines)
     print(f"Total turns: {turns}", file=sys.stderr)
-
-    try:
-        from source.visual.gui import PygameRenderer
-        PygameRenderer(graph, lines).run()
-    except KeyboardInterrupt:
-        print("\nProgram interrupted by user", file=sys.stderr)
-        return 0
-    except Exception as error:  # pygame missing, no display, ...
-        print(f"Window unavailable: {error}", file=sys.stderr)
     return 0
 
 

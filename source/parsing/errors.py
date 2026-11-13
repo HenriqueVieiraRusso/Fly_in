@@ -9,4 +9,5 @@ class ParseError(Exception):
     def __init__(self, line_number: int, message: str) -> None:
         self.line_number = line_number
         self.message = message
-        super().__init__(f"line {line_number}: {message}")
+        prefix = f"line {line_number}: " if line_number else ""
+        super().__init__(f"{prefix}{message}")

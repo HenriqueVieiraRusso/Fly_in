@@ -158,7 +158,7 @@ class MapParser:
                     capacity = int(metadata["max_link_capacity"])
                 except ValueError:
                     raise ValueError(
-                        "max_link_capacity must be an int, got"
+                        "max_link_capacity must be an int, got "
                         f"'{metadata['max_link_capacity']}'"
                     ) from None
 
