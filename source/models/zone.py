@@ -76,7 +76,7 @@ class Zone:
                 )
         if self.has_capacity_limit and self.max_drones < 1:
             raise ValueError(
-                f"Max drones must be a positive int, got{self.max_drones}"
+                f"Max drones must be a positive int, got {self.max_drones}"
                 )
 
     @property

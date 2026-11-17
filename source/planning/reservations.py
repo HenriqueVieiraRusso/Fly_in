@@ -21,14 +21,22 @@ def trip_turns(dst: Zone) -> int:
 class ReservationTable:
     """Tracks zone and link usage per turn.
 
-    A move that starts on turn T and takes c turns:
-      - uses its link on turns T .. T + c - 1 (both turns for a
-        restricted zone), and
-      - puts the drone in the destination at turn T + c - 1.
+    A move that departs on line T and takes c turns (c = 1 for normal
+    and priority zones, 2 for restricted zones):
+      - uses its link only on line T. The link is freed on the line
+        the drone arrives, so another drone may start crossing then.
+      - puts the drone in the destination zone at turn T + c - 1,
+        which is the line it arrives on.
+
+    A drone waiting in a zone is booked in that zone for every turn it
+    stays. A drone that has left a zone is not counted in it, so the
+    space is free for another drone on the same line.
 
     Attributes:
-        zone_usage: (zone name, turn) -> drones present after that turn.
-        link_usage: (connection key, turn) -> drones using the link.
+        zone_usage: (zone name, turn) -> number of drones in that zone
+            after that turn.
+        link_usage: (connection key, turn) -> number of drones that
+            start crossing that connection on that line.
     """
 
     def __init__(self) -> None:
