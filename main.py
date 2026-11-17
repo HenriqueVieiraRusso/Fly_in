@@ -1,37 +1,35 @@
-"""Entry point for the Fly-in drone routing simulation."""
-
 import sys
 
 from source.parsing.errors import ParseError
-from source.simulation.output import build_lines
 from source.parsing.parser import MapParser
 from source.planning.scheduler import plan_all
+from source.simulation.output import build_lines
 from source.simulation.simulation import ScheduleChecker, SimulationError
 from source.visual.terminal import TerminalRenderer
 
 
 def main(argv: list[str]) -> int:
-    """Run the simulation, print the turns, then show the window.
-
-    Args:
-        argv: Command-line arguments, excluding the program name.
+    """Run the simulation on the map file given in argv.
 
     Returns:
-        Process exit code (0 on success, 1 on error).
+        0 on success, 1 on error.
     """
     if len(argv) != 1:
-        print("Usage: python3 main.py <map_file>", file=sys.stderr)
+        print("Usage: ./main.py <map_file>", file=sys.stderr)
         return 1
+    map_file = argv[0]
+
     try:
-        graph = MapParser().parse(argv[0])
-        paths = plan_all(graph)
-        lines = build_lines(graph, paths)
-        turns = ScheduleChecker(graph).check(lines)
+        graph = MapParser().parse(map_file)   # 1. read the map
+        paths = plan_all(graph)               # 2. plan a path per drone
+        lines = build_lines(graph, paths)     # 3. turn paths into text
+        checker = ScheduleChecker(graph)      # 4. verify every rule
+        turns = checker.check(lines)
     except (ParseError, ValueError, SimulationError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
 
-    TerminalRenderer(graph).show(lines)
+    TerminalRenderer(graph).show(lines)       # 5. display
     print(f"Total turns: {turns}", file=sys.stderr)
     return 0
 

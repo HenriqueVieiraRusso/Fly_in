@@ -78,6 +78,10 @@ class Zone:
             raise ValueError(
                 f"Max drones must be a positive int, got {self.max_drones}"
                 )
+        if self.zone_type is ZoneType.BLOCKED and not self.has_capacity_limit:
+            raise ValueError(
+                f"The start and end hubs cannot be blocked ('{self.name}')"
+                )
 
     @property
     def is_blocked(self) -> bool:
