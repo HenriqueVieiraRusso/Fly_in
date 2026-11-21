@@ -1,9 +1,5 @@
-"""Colored terminal output for the simulation."""
-
 import sys
-
 from source.models.graph import Graph
-
 RESET = "\033[0m"
 
 # Color name (from the map file) -> ANSI code.
@@ -41,7 +37,18 @@ class TerminalRenderer:
         names = [self.paint(name) for name in target.split("-")]
         return f"{drone}-{'-'.join(names)}"
 
-    def show(self, lines: list[str]) -> None:
-        """Print one colored line per turn."""
-        for line in lines:
+    def state(self, name: str, used: int) -> str:
+        """Return 'zone: used/max' (start and end have no limit)."""
+        zone = self.graph.zones[name]
+        limit = zone.max_drones if zone.has_capacity_limit else "∞"
+        return f"{self.paint(name)}: {used}/{limit}"
+
+    def show(
+        self, lines: list[str], states: list[dict[str, int]] | None = None
+    ) -> None:
+        """Print one colored line per turn, plus zone states if given."""
+        for i, line in enumerate(lines):
             print(" ".join(self.paint_entry(e) for e in line.split()))
+            if states:
+                rows = sorted(states[i].items())
+                print("  " + ", ".join(self.state(z, n) for z, n in rows))

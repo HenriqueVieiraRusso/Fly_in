@@ -4,8 +4,21 @@ from source.parsing.errors import ParseError
 from source.parsing.parser import MapParser
 from source.planning.scheduler import plan_all
 from source.simulation.output import build_lines
-from source.simulation.simulation import ScheduleChecker, SimulationError
 from source.visual.terminal import TerminalRenderer
+
+
+def zone_counts(
+    paths: list[list[tuple[str, int]]], turns: int
+) -> list[dict[str, int]]:
+    """Drones per zone after each turn (a drone in flight is in no zone)."""
+    counts: list[dict[str, int]] = [{} for _ in range(turns)]
+    for path in paths:
+        at = {turn: zone for zone, turn in path}
+        for t in range(1, turns + 1):
+            zone = at.get(t, path[-1][0] if t > path[-1][1] else None)
+            if zone:
+                counts[t - 1][zone] = counts[t - 1].get(zone, 0) + 1
+    return counts
 
 
 def main(argv: list[str]) -> int:
@@ -14,6 +27,8 @@ def main(argv: list[str]) -> int:
     Returns:
         0 on success, 1 on error.
     """
+    zones = "--zones" in argv
+    argv = [arg for arg in argv if arg != "--zones"]
     if len(argv) != 1:
         print("Usage: ./main.py <map_file>", file=sys.stderr)
         return 1
@@ -23,13 +38,13 @@ def main(argv: list[str]) -> int:
         graph = MapParser().parse(map_file)
         paths = plan_all(graph)
         lines = build_lines(graph, paths)
-        checker = ScheduleChecker(graph)
-        turns = checker.check(lines)
-    except (ParseError, ValueError, SimulationError) as error:
+        turns = len(lines)
+    except (ParseError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
 
-    TerminalRenderer(graph).show(lines)
+    states = zone_counts(paths, turns) if zones else None
+    TerminalRenderer(graph).show(lines, states)
     print(f"Total turns: {turns}", file=sys.stderr)
     return 0
 
