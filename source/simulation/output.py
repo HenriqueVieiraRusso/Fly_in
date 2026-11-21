@@ -1,14 +1,9 @@
-"""Turn planned paths into the simulation output lines."""
-
 from source.models.graph import Graph
 from source.planning.pathfinder import State
 
 
 def _connection_name(graph: Graph, zone_a: str, zone_b: str) -> str:
     """Return the connection name used for a drone in flight.
-
-    Uses the order written in the map file. Check this against the
-    subject's example output (VII.5) and change it here if needed.
 
     Raises:
         ValueError: If the two zones are not connected.
@@ -37,18 +32,15 @@ def build_lines(graph: Graph, paths: list[list[State]]) -> list[str]:
         drone_name = f"D{drone_index}"
 
         for (zone_a, turn_a), (zone_b, turn_b) in zip(path, path[1:]):
-            # Waiting does not generate an output entry.
             if zone_a == zone_b:
                 continue
 
-            # Restricted move: in flight on the connection first.
             if turn_b - turn_a > 1:
                 name = _connection_name(graph, zone_a, zone_b)
                 turns.setdefault(turn_a + 1, []).append(
                     f"{drone_name}-{name}"
                 )
 
-            # Arrival in zone_b on line turn_b.
             turns.setdefault(turn_b, []).append(f"{drone_name}-{zone_b}")
 
     total = max(turns.keys(), default=0)

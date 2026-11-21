@@ -71,19 +71,15 @@ def find_path(
         base = priority_count[state]
         next_turn = current_turn + 1
 
-        # Option 1: wait here for one more turn.
         if table.can_stay(zone, next_turn):
             offer((zone_name, next_turn), state, base)
 
-        # Option 2: move to a neighbour, leaving on line `next_turn`.
         for dst in graph.neighbors(zone_name):
             conn = graph.connection_between(zone_name, dst.name)
             if conn is None:
                 continue
             if not table.can_move(dst, conn, next_turn):
                 continue
-            # Leaves on line T + 1, occupies dst after line
-            # T + 1 + duration - 1 = T + duration.
             arrival = current_turn + trip_turns(dst)
             if arrival > max_turn:
                 continue

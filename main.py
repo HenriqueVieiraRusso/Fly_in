@@ -20,16 +20,16 @@ def main(argv: list[str]) -> int:
     map_file = argv[0]
 
     try:
-        graph = MapParser().parse(map_file)   # 1. read the map
-        paths = plan_all(graph)               # 2. plan a path per drone
-        lines = build_lines(graph, paths)     # 3. turn paths into text
-        checker = ScheduleChecker(graph)      # 4. verify every rule
+        graph = MapParser().parse(map_file)
+        paths = plan_all(graph)
+        lines = build_lines(graph, paths)
+        checker = ScheduleChecker(graph)
         turns = checker.check(lines)
     except (ParseError, ValueError, SimulationError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
 
-    TerminalRenderer(graph).show(lines)       # 5. display
+    TerminalRenderer(graph).show(lines)
     print(f"Total turns: {turns}", file=sys.stderr)
     return 0
 
